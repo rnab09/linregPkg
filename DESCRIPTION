@@ -1,0 +1,10 @@
+Package: linregPkg
+Title: Linear Regression Package
+Version: 0.0.0.9000
+Authors@R: "Arnab Saha <praar849@student.liu.se>"
+Description: A package for linear regression.
+PkgVersion: 0.1.0
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
