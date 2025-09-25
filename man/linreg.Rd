@@ -12,10 +12,11 @@ linreg(formula, data)
 \item{data}{A data frame containing the variables.}
 }
 \value{
-An object of class "linreg" with regression results (S3 list or RC object).
+An object of class "LinregClass" (RC) with regression results.
 }
 \description{
-Fits a linear regression model using OLS (basic) or QR decomposition (advanced).
+Fits a linear regression model using OLS (Ordinary Least Squares).
+Returns an RC (Reference Class) object of class "LinregClass".
 }
 \examples{
 data(iris)
