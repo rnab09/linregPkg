@@ -89,3 +89,5 @@ linreg <- function(formula, data) {
   # Return the RC object
   return(result)
 }
+
+# this line was added
