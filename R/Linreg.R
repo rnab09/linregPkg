@@ -1,24 +1,45 @@
+
+
 #' @importFrom stats model.matrix pt
 #' @import methods
+#' @importFrom gridExtra grid.arrange
+#' @import ggplot2
 
 # Define the RC (Reference Class) with a distinct name to avoid conflict
 LinregClass <- setRefClass("LinregClass",
-                           fields = list(
-                             call = "call",                # Stores the original function call (like lm())
-                             formula = "formula",          # The input formula
-                             data_name = "character",      # Name of the data frame
-                             beta_hat = "matrix",          # Estimated regression coefficients (column matrix)
-                             y_hat = "numeric",            # Fitted values
-                             e = "numeric",                # Residuals
-                             df = "numeric",               # Degrees of freedom
-                             sigma2_hat = "numeric",       # Residual variance (sigma squared)
-                             var_beta_hat = "matrix",      # Variance-covariance matrix of coefficients
-                             se_beta = "numeric",          # Standard errors of coefficients
-                             t_beta = "matrix",            # t-values for coefficients (column matrix)
-                             p_values = "matrix",          # p-values for coefficients (column matrix)
-                             coeff_names = "character"     # Names of coefficients (e.g., "(Intercept)", predictors)
-                           )
-)
+   fields = list(
+    call = "call",                # Stores the original function call (like lm())
+    formula = "formula",          # The input formula
+    data_name = "character",      # Name of the data frame
+    beta_hat = "matrix",          # Estimated regression coefficients (column matrix)
+    y_hat = "numeric",            # Fitted values
+    e = "numeric",                # Residuals
+    df = "numeric",
+    st_e = "numeric",
+    sigma2_hat = "numeric",       # Residual variance (sigma squared)
+    var_beta_hat = "matrix",      # Variance-covariance matrix of coefficients
+    se_beta = "numeric",          # Standard errors of coefficients
+    t_beta = "matrix",            # t-values for coefficients (column matrix)
+    p_values = "matrix",          # p-values for coefficients (column matrix)
+    coeff_names = "character"     # Names of coefficients (e.g., "(Intercept)", predictors)
+    ),
+    methods = list(
+     print = function() {
+     cat("Call:\n")
+     base::print(.self$call)
+     cat("\nCoefficients:\n")
+     base::print(as.numeric(.self$beta_hat))
+     invisible(.self)
+    },
+    plot = function() {
+      plot1 = qplot(.self$y_hat, .self$e, xlab = "Fitted values", ylab = "Residuals",
+                    main = "Residuals vs Fitted")
+      plot2 = qplot(.self$y_hat, sqrt(abs(.self$st_e)), xlab = "Fitted values", ylab = "√|Standartized residuals|",
+                    main = "Scale-Location")
+      gridExtra::grid.arrange(plot1, plot2, ncol = 1)
+
+    }
+))
 
 #' Linear Regression Function
 #'
@@ -51,6 +72,7 @@ linreg <- function(formula, data) {
   y_hat <- as.numeric(X %*% beta_hat)  # Flatten to numeric vector
   # Residuals: e = y - y_hat
   e <- y - y_hat
+
   # Number of observations (n) and parameters (p)
   n <- nrow(X)
   p <- ncol(X)
@@ -60,6 +82,7 @@ linreg <- function(formula, data) {
   sigma2_hat <- as.numeric((t(e) %*% e) / df)
   # Variance-covariance of betas: var_beta_hat = sigma2_hat * (X'X)^(-1)
   var_beta_hat <- sigma2_hat * XtX_inv
+  st_e <- e/(sqrt(sigma2_hat)*sqrt(1-diag(X %*% XtX_inv %*% t(X))))
   # Standard errors: se_beta = sqrt(diag(var_beta_hat))
   se_beta <- sqrt(diag(var_beta_hat))
   # t-values: t_beta = beta_hat / se_beta
@@ -76,7 +99,8 @@ linreg <- function(formula, data) {
     data_name = deparse(substitute(data)),  # Store data name as string
     beta_hat = beta_hat,           # Coefficients matrix
     y_hat = y_hat,                 # Fitted values vector
-    e = e,                         # Residuals vector
+    e = e,
+    st_e = st_e,
     df = df,                       # Degrees of freedom scalar
     sigma2_hat = sigma2_hat,       # Residual variance scalar
     var_beta_hat = var_beta_hat,   # Variance matrix
@@ -90,4 +114,17 @@ linreg <- function(formula, data) {
   return(result)
 }
 
-# this line was added
+
+
+
+
+# data(iris)
+# qplot(linreg_mod$y_hat, linreg_mod$e)
+# is.data.frame(iris)
+# mod_object <- lm(Petal.Length~Species, data = iris)
+# print(mod_object)
+#
+#
+# linreg_mod <- linreg(formula = Petal.Length ~ Species, data = iris)
+# linreg_mod$print()
+# linreg_mod$plot()
