@@ -41,45 +41,8 @@ linreg <- function(formula, data) {
 
   # --- Store Results: Choose S3 (basic) or RC (*) ---
   # Basic: S3 class (list)
-  result <- list(
-    call = match.call(),  # Store the call for print()
-    formula = formula,
-    data_name = deparse(substitute(data)),
-    beta_hat = beta_hat,
-    y_hat = y_hat,
-    e = e,
-    df = df,
-    sigma2_hat = sigma2_hat,
-    var_beta_hat = var_beta_hat,
-    se_beta = se_beta,
-    t_beta = t_beta,
-    p_values = p_values,
-    coeff_names = colnames(X)  # For naming coefficients
-  )
-  class(result) <- "linreg"
-
-  # --- Alternative: (*) RC class (uncomment to use instead of S3; define class first) ---
-  # # First, define the RC class at the top of this file (outside the function):
-  # linreg <- setRefClass("linreg",
-  #   fields = list(
-  #     call = "call",
-  #     formula = "formula",
-  #     data_name = "character",
-  #     beta_hat = "matrix",
-  #     y_hat = "numeric",
-  #     e = "numeric",
-  #     df = "numeric",
-  #     sigma2_hat = "numeric",
-  #     var_beta_hat = "matrix",
-  #     se_beta = "numeric",
-  #     t_beta = "matrix",
-  #     p_values = "matrix",
-  #     coeff_names = "character"
-  #   )
-  # )
-  # # Then, in the function (replace the S3 return):
-  # result <- linreg$new(
-  #   call = match.call(),
+  # result <- list(
+  #   call = match.call(),  # Store the call for print()
   #   formula = formula,
   #   data_name = deparse(substitute(data)),
   #   beta_hat = beta_hat,
@@ -91,8 +54,45 @@ linreg <- function(formula, data) {
   #   se_beta = se_beta,
   #   t_beta = t_beta,
   #   p_values = p_values,
-  #   coeff_names = colnames(X)
+  #   coeff_names = colnames(X)  # For naming coefficients
   # )
+  # class(result) <- "linreg"
+
+  # --- Alternative: (*) RC class (uncomment to use instead of S3; define class first) ---
+  # # First, define the RC class at the top of this file (outside the function):
+  linreg <- setRefClass("linreg",
+    fields = list(
+      call = "call",
+      formula = "formula",
+      data_name = "character",
+      beta_hat = "matrix",
+      y_hat = "numeric",
+      e = "numeric",
+      df = "numeric",
+      sigma2_hat = "numeric",
+      var_beta_hat = "matrix",
+      se_beta = "numeric",
+      t_beta = "matrix",
+      p_values = "matrix",
+      coeff_names = "character"
+    )
+  )
+  # # Then, in the function (replace the S3 return):
+  result <- linreg$new(
+    call = match.call(),
+    formula = formula,
+    data_name = deparse(substitute(data)),
+    beta_hat = beta_hat,
+    y_hat = y_hat,
+    e = e,
+    df = df,
+    sigma2_hat = sigma2_hat,
+    var_beta_hat = var_beta_hat,
+    se_beta = se_beta,
+    t_beta = t_beta,
+    p_values = p_values,
+    coeff_names = colnames(X)
+  )
 
   return(result)
 }
