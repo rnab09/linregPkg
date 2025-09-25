@@ -32,11 +32,14 @@ LinregClass <- setRefClass("LinregClass",
      invisible(.self)
     },
     plot = function() {
+      med_resid <- stats::median(.self$e, na.rm = TRUE)
+      med_sqrt  <- stats::median(sqrt(abs(.self$st_e)), na.rm = TRUE)
+
       plot1 = qplot(.self$y_hat, .self$e, xlab = "Fitted values", ylab = "Residuals",
                     main = "Residuals vs Fitted")
-      plot2 = qplot(.self$y_hat, sqrt(abs(.self$st_e)), xlab = "Fitted values", ylab = "√|Standartized residuals|",
+      plot2 = qplot(.self$y_hat, sqrt(abs(.self$st_e)), xlab = "Fitted values", ylab = "sqrt(|Standartized residuals|)",
                     main = "Scale-Location")
-      gridExtra::grid.arrange(plot1, plot2, ncol = 1)
+      grid.arrange(plot1, plot2, ncol = 1)
 
     }
 ))
