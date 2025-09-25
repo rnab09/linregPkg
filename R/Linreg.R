@@ -96,3 +96,5 @@ linreg <- function(formula, data) {
 
   return(result)
 }
+
+# this line was added
