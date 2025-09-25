@@ -1,7 +1,7 @@
 Package: linregPkg
 Title: Linear Regression Package
 Version: 0.0.0.9000
-Authors@R:c(person("Aset", "Zhumatai", email = "asezh116@student.liu.se", role = c("aut", "cre")), person("Pranjal Saha", "Arnab", email = "praar849@student.liu.se", role = "aut"))
+Authors@R: c(person("Aset", "Zhumatai", email = "asezh116@student.liu.se", role = c("aut", "cre")), person("Pranjal Saha", "Arnab", email = "praar849@student.liu.se", role = "aut"))
 Description: A package for linear regression.
 PkgVersion: 0.1.0
 License: GPL (>= 3)
@@ -13,4 +13,6 @@ Imports:
     methods,
     ggplot2,
     gridExtra
-    
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
