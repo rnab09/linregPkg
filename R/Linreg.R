@@ -1,150 +1,166 @@
-#' @importFrom stats model.matrix pt
+#' @importFrom stats model.matrix pt model.frame model.response terms
 #' @import methods
 #' @importFrom gridExtra grid.arrange
 #' @import ggplot2
 
-# Define the RC (Reference Class) with a distinct name to avoid conflict
-LinregClass <- setRefClass("LinregClass",
-                           fields = list(
-                             call = "call",                # Stores the original function call (like lm())
-                             formula = "formula",          # The input formula
-                             data_name = "character",      # Name of the data frame
-                             beta_hat = "matrix",          # Estimated regression coefficients (column matrix)
-                             y_hat = "numeric",            # Fitted values
-                             e = "numeric",                # Residuals
-                             df = "numeric",               # Degrees of freedom
-                             st_e = "numeric",             # Standardized residuals
-                             sigma2_hat = "numeric",       # Residual variance (sigma squared)
-                             var_beta_hat = "matrix",      # Variance-covariance matrix of coefficients
-                             se_beta = "numeric",          # Standard errors of coefficients
-                             t_beta = "matrix",            # t-values for coefficients (column matrix)
-                             p_values = "matrix",          # p-values for coefficients (column matrix)
-                             coeff_names = "character"     # Names of coefficients (e.g., "(Intercept)", predictors)
-                           ),
-                           methods = list(
-                             # Print method to mimic lm() output
-                             print = function() {
-                               cat("Call:\n")
-                               base::print(.self$call)
-                               cat("\nCoefficients:\n")
-                               base::print(as.numeric(.self$beta_hat))
-                               invisible(.self)
-                             },
+linreg <- setRefClass(
+  "linreg",
+  fields = list(
+    call          = "call",
+    formula       = "formula",
+    data          = "data.frame",
+    data_name     = "character",
+    beta_hat      = "numeric",   # named vector
+    y_hat         = "numeric",
+    e             = "numeric",
+    df            = "numeric",
+    st_e          = "numeric",
+    sigma2_hat    = "numeric",
+    var_beta_hat  = "matrix",
+    se_beta       = "numeric",
+    t_beta        = "numeric",
+    p_values      = "numeric",
+    coeff_names   = "character"
+  ),
+  methods = list(
 
-                             # Plot method with two ggplot2 plots using grid.arrange
-                             plot = function() {
-                               med_resid <- stats::median(.self$e, na.rm = TRUE)
-                               med_sqrt <- stats::median(sqrt(abs(.self$st_e)), na.rm = TRUE)
+    initialize = function(formula, data, ...) {
+      callSuper(...)
 
-                               # Plot 1: Residuals vs Fitted with median line and loess smooth
-                               plot1 <- ggplot(data.frame(fitted = .self$y_hat, residuals = .self$e), aes(x = fitted, y = residuals)) +
-                                 geom_point() +
-                                 geom_hline(yintercept = med_resid, color = "red", linetype = "dashed") +
-                                 geom_smooth(method = "loess", se = FALSE, color = "blue") +
-                                 ggtitle("Residuals vs Fitted") +
-                                 xlab("Fitted values") +
-                                 ylab("Residuals")
+      ## Save call in the format expected by tests
+      data_sym        <- substitute(data)
+      .self$data_name <- deparse(data_sym)
+      .self$formula   <- formula
+      .self$data      <- data
+      .self$call <- as.call(list(
+        as.name("linreg"),
+        formula = formula,
+        data    = data_sym
+      ))
 
-                               # Plot 2: Scale-Location with loess smooth
-                               plot2 <- ggplot(data.frame(fitted = .self$y_hat, std_res_sqrt = sqrt(abs(.self$st_e))), aes(x = fitted, y = std_res_sqrt)) +
-                                 geom_point() +
-                                 geom_smooth(method = "loess", se = FALSE, color = "red") +
-                                 ggtitle("Scale-Location") +
-                                 xlab("Fitted values") +
-                                 ylab("sqrt(|Standardized residuals|)")
+      ## Build model frame
+      mf <- stats::model.frame(formula, data = data, na.action = stats::na.pass)
+      tt <- stats::terms(mf)
+      X  <- stats::model.matrix(tt, mf)
+      y  <- as.numeric(stats::model.response(mf))
 
-                               grid.arrange(plot1, plot2, ncol = 1)
-                               invisible(.self)
-                             },
+      n <- nrow(X); p <- ncol(X)
+      XtX     <- crossprod(X)
+      XtX_inv <- solve(XtX)
+      Xty     <- crossprod(X, y)
 
-                             # Residuals method to return the vector of residuals
-                             resid = function() {
-                               return(.self$e)
-                             },
+      ## Estimates
+      beta_hat_ <- as.numeric(solve(XtX, Xty))
+      names(beta_hat_) <- colnames(X)
 
-                             # Predicted values method to return the fitted values
-                             pred = function() {
-                               return(.self$y_hat)
-                             },
+      y_hat_   <- as.numeric(X %*% beta_hat_)
+      e_       <- y - y_hat_
+      df_      <- n - p
+      sigma2_  <- as.numeric(crossprod(e_) / df_)
+      vcov_    <- sigma2_ * XtX_inv
+      se_      <- sqrt(diag(vcov_))
+      t_       <- beta_hat_ / se_
+      p_       <- 2 * stats::pt(abs(t_), df = df_, lower.tail = FALSE)
 
-                             # Coefficients method to return a named vector of coefficients
-                             coef = function() {
-                               coeffs <- as.vector(.self$beta_hat)
-                               names(coeffs) <- .self$coeff_names
-                               return(coeffs)
-                             },
+      ## standardized residuals
+      Hdiag <- rowSums((X %*% XtX_inv) * X)
+      den   <- sqrt(pmax(1e-12, 1 - Hdiag))
+      st_e_ <- e_ / (sqrt(sigma2_) * den)
 
-                             # Summary method to return a table similar to lm()
-                             summary = function() {
-                               coeff_table <- cbind(
-                                 Estimate = as.vector(.self$beta_hat),
-                                 `Std. Error` = .self$se_beta,
-                                 `t value` = as.vector(.self$t_beta),
-                                 `Pr(>|t|)` = as.vector(.self$p_values)
-                               )
-                               rownames(coeff_table) <- .self$coeff_names
+      ## Store into fields
+      .self$beta_hat     <- beta_hat_
+      .self$y_hat        <- y_hat_
+      .self$e            <- e_
+      .self$df           <- df_
+      .self$sigma2_hat   <- sigma2_
+      .self$var_beta_hat <- vcov_
+      .self$se_beta      <- se_
+      .self$t_beta       <- t_
+      .self$p_values     <- p_
+      .self$st_e         <- st_e_
+      .self$coeff_names  <- colnames(X)
 
-                               cat("Coefficients:\n")
-                               base::print(coeff_table)
-                               cat("\nResidual standard error:", sqrt(.self$sigma2_hat), "on", .self$df, "degrees of freedom\n")
-                               invisible(.self)
-                             }
-                           )
+      invisible(.self)
+    },
+
+    print = function() {
+      cat("Call:\n"); base::print(.self$call)
+      cat("\nCoefficients:\n"); base::print(.self$beta_hat)
+      invisible(.self)
+    },
+
+    resid = function() .self$e,
+    pred  = function() .self$y_hat,
+    coef  = function() stats::setNames(.self$beta_hat, .self$coeff_names),
+
+    summary = function() {
+      stars <- function(p)
+        ifelse(p < 0.001,"***",
+               ifelse(p < 0.01,"**",
+                      ifelse(p < 0.05,"*",
+                             ifelse(p < 0.1,"."," "))))
+
+      tbl <- data.frame(
+        Estimate     = .self$beta_hat,
+        `Std. Error` = .self$se_beta,
+        `t value`    = .self$t_beta,
+        `Pr(>|t|)`   = .self$p_values,
+        check.names  = FALSE
+      )
+      tbl$` ` <- stars(tbl$`Pr(>|t|)`)
+      rownames(tbl) <- .self$coeff_names
+
+      cat("Coefficients:\n"); base::print(tbl)
+      cat(sprintf(
+        "\nResidual standard error: %.6f on %d degrees of freedom\n",
+        sqrt(.self$sigma2_hat), as.integer(.self$df)
+      ))
+      invisible(tbl)
+    },
+
+    plot = function() {
+      med_resid <- stats::median(.self$e, na.rm = TRUE)
+      plot1 <- ggplot2::ggplot(
+        data.frame(fitted = .self$y_hat, residuals = .self$e),
+        ggplot2::aes(x = fitted, y = residuals)
+      ) +
+        ggplot2::geom_point() +
+        ggplot2::geom_hline(yintercept = med_resid, color = "red", linetype = "dashed") +
+        ggplot2::geom_smooth(method = "loess", se = FALSE, color = "blue", formula = y ~ x) +
+        ggplot2::ggtitle("Residuals vs Fitted") +
+        ggplot2::xlab("Fitted values") +
+        ggplot2::ylab("Residuals")
+
+      plot2 <- ggplot2::ggplot(
+        data.frame(fitted = .self$y_hat, std_res_sqrt = sqrt(abs(.self$st_e))),
+        ggplot2::aes(x = fitted, y = std_res_sqrt)
+      ) +
+        ggplot2::geom_point() +
+        ggplot2::geom_smooth(method = "loess", se = FALSE, color = "red", formula = y ~ x) +
+        ggplot2::ggtitle("Scale-Location") +
+        ggplot2::xlab("Fitted values") +
+        ggplot2::ylab("sqrt(|Standardized residuals|)")
+
+      gridExtra::grid.arrange(plot1, plot2, ncol = 1)
+      invisible(.self)
+    }
+  )
 )
 
-#' Linear Regression Function
+#' Fit a linear regression using OLS (wrapper around the RC class)
 #'
-#' Fits a linear regression model using OLS (Ordinary Least Squares).
-#' Returns an RC (Reference Class) object of class "LinregClass".
+#' This convenience function constructs and returns an object of class **"linreg"**
+#' (the Reference Class you defined) by calling its generator with `$new()`.
 #'
-#' @param formula A formula object (e.g., y ~ x1 + x2).
-#' @param data A data frame containing the variables.
-#' @return An object of class "LinregClass" (RC) with regression results.
-#' @export
+#' @param formula A formula like \code{y ~ x1 + x2}.
+#' @param data A \code{data.frame} containing the variables.
+#' @return An object of class \code{"linreg"} (RC) with fields and methods.
 #' @examples
 #' data(iris)
-#' mod <- linreg(Petal.Length ~ Species, iris)
-linreg <- function(formula, data) {
-  # --- Input Handling ---
-  X <- model.matrix(formula, data)
-  dep_var <- all.vars(formula)[1]
-  y <- data[[dep_var]]
-
-  # --- Computations: Ordinary Least Squares (OLS) ---
-  XtX_inv <- solve(t(X) %*% X)
-  beta_hat <- XtX_inv %*% t(X) %*% y
-
-  # --- Common Computations (Shared Post-Estimation) ---
-  y_hat <- as.numeric(X %*% beta_hat)
-  e <- y - y_hat
-
-  n <- nrow(X)
-  p <- ncol(X)
-  df <- n - p
-  sigma2_hat <- as.numeric((t(e) %*% e) / df)
-  var_beta_hat <- sigma2_hat * XtX_inv
-  st_e <- e / (sqrt(sigma2_hat) * sqrt(1 - diag(X %*% XtX_inv %*% t(X))))
-  se_beta <- sqrt(diag(var_beta_hat))
-  t_beta <- beta_hat / se_beta
-  p_values <- 2 * pt(-abs(t_beta), df)
-
-  # --- Store Results in RC Object ---
-  result <- LinregClass$new(
-    call = match.call(),
-    formula = formula,
-    data_name = deparse(substitute(data)),
-    beta_hat = beta_hat,
-    y_hat = y_hat,
-    e = e,
-    st_e = st_e,
-    df = df,
-    sigma2_hat = sigma2_hat,
-    var_beta_hat = var_beta_hat,
-    se_beta = se_beta,
-    t_beta = t_beta,
-    p_values = p_values,
-    coeff_names = colnames(X)
-  )
-
-  return(result)
+#' m <- linreg_fit(Petal.Length ~ Sepal.Width + Sepal.Length, iris)
+#' m$summary()
+#' @export
+linreg_fit <- function(formula, data) {
+  linreg$new(formula = formula, data = data)
 }
+
