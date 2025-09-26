@@ -16,7 +16,7 @@ An object of class \code{"linreg"} (RC) with fields and methods.
 }
 \description{
 This convenience function constructs and returns an object of class \strong{"linreg"}
-(the Reference Class you defined) by calling its generator with \verb{$new()}.
+by calling its generator with \verb{$new()}.
 }
 \examples{
 data(iris)

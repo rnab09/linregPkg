@@ -1,0 +1,54 @@
+---
+title: "linreg_vignette"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{linreg_vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This vignette demonstrates how to use **linregPkg** to fit linear regression
+models and inspect the results.
+
+Authors: Aset Zhumatai, Pranjal Saha Arnab
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r}
+library(linregPkg)
+
+
+data(iris)
+mod <- linreg_fit(Petal.Length ~ Sepal.Width + Sepal.Length, data = iris)
+```
+## Print
+```{r}
+mod$print()
+```
+
+## Plot
+```{r, fig.width=7, fig.height=10}
+mod$plot()
+```
+
+## Coefficients 
+```{r}
+mod$coef()
+```
+## Residuals
+```{r}
+head(mod$resid())
+```
+## Predictions
+```{r}
+head(mod$pred())
+```
+## Summary
+```{r}
+mod$summary()
+```

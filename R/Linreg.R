@@ -10,7 +10,7 @@ linreg <- setRefClass(
     formula       = "formula",
     data          = "data.frame",
     data_name     = "character",
-    beta_hat      = "numeric",   # named vector
+    beta_hat      = "numeric",
     y_hat         = "numeric",
     e             = "numeric",
     df            = "numeric",
@@ -27,7 +27,6 @@ linreg <- setRefClass(
     initialize = function(formula, data, ...) {
       callSuper(...)
 
-      ## Save call in the format expected by tests
       data_sym        <- substitute(data)
       .self$data_name <- deparse(data_sym)
       .self$formula   <- formula
@@ -38,7 +37,7 @@ linreg <- setRefClass(
         data    = data_sym
       ))
 
-      ## Build model frame
+
       mf <- stats::model.frame(formula, data = data, na.action = stats::na.pass)
       tt <- stats::terms(mf)
       X  <- stats::model.matrix(tt, mf)
@@ -150,7 +149,7 @@ linreg <- setRefClass(
 #' Fit a linear regression using OLS (wrapper around the RC class)
 #'
 #' This convenience function constructs and returns an object of class **"linreg"**
-#' (the Reference Class you defined) by calling its generator with `$new()`.
+#' by calling its generator with `$new()`.
 #'
 #' @param formula A formula like \code{y ~ x1 + x2}.
 #' @param data A \code{data.frame} containing the variables.
